@@ -15,7 +15,7 @@ A tmux plugin for creating sessions from YAML templates.
 Add this line to your `~/.tmux.conf`:
 
 ```bash
-set -g @plugin 'username/tmux-session-factory'
+set -g @plugin 'moonstream-labs/tmux-session-factory'
 ```
 
 Press `prefix + I` to install the plugin.
@@ -23,7 +23,7 @@ Press `prefix + I` to install the plugin.
 ### Manual Installation
 
 ```bash
-git clone https://github.com/username/tmux-session-factory ~/.tmux/plugins/tmux-session-factory
+git clone https://github.com/moonstream-labs/tmux-session-factory ~/.tmux/plugins/tmux-session-factory
 ```
 
 Add this line to your `~/.tmux.conf`:
