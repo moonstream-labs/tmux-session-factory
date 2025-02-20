@@ -8,18 +8,17 @@ PARENT_DIR="$(dirname "$CURRENT_DIR")"
 TEMPLATES_DIR="$PARENT_DIR/templates"
 
 # Debug output
-echo "CURRENT_DIR: $CURRENT_DIR"
-echo "PARENT_DIR: $PARENT_DIR"
-echo "TEMPLATES_DIR: $TEMPLATES_DIR"
+echo "CURRENT_DIR: $CURRENT_DIR" >&2
+echo "PARENT_DIR: $PARENT_DIR" >&2
+echo "TEMPLATES_DIR: $TEMPLATES_DIR" >&2
 
 source "$CURRENT_DIR/helpers.sh"
 
 # Function to list available templates using fzf
 select_template() {
     local templates_dir="$1"
-    echo "Looking for templates in: $templates_dir"
     find "$templates_dir" -name "*.yml" -exec basename {} .yml \; | \
-        fzf --height 40% --reverse --prompt="Select template: "
+        fzf --height 40% --reverse --prompt="Select template: " 2>/dev/null
 }
 
 # Function to get session name from user
@@ -34,11 +33,11 @@ create_session_from_template() {
     local template_name="$2"
     local template_file="$TEMPLATES_DIR/${template_name}.yml"
     
-    echo "Creating session: $session_name from template: $template_file"
+    echo "Creating session: $session_name from template: $template_file" >&2
     
     # Check if template exists
     if [ ! -f "$template_file" ]; then
-        echo "Error: Template file not found: $template_file"
+        echo "Error: Template file not found: $template_file" >&2
         return 1
     fi
 
@@ -47,14 +46,14 @@ create_session_from_template() {
     
     # Check if session was created
     if ! tmux has-session -t "$session_name" 2>/dev/null; then
-        echo "Error: Failed to create session: $session_name"
+        echo "Error: Failed to create session: $session_name" >&2
         return 1
     fi
 
     # Read template and create windows
     local window_index=0
     while IFS= read -r window_name; do
-        echo "Creating window: $window_name (index: $window_index)"
+        echo "Creating window: $window_name (index: $window_index)" >&2
         create_window "$session_name" "$window_name" "$window_index"
         ((window_index++))
     done < <(parse_yaml "$template_file")
@@ -65,10 +64,10 @@ create_session_from_template() {
 
 # Main execution
 if [ "$#" -eq 0 ]; then
-    echo "No arguments provided, showing template selection"
+    echo "No arguments provided, showing template selection" >&2
     template_name=$(select_template "$TEMPLATES_DIR")
     [ -n "$template_name" ] && get_session_name "$template_name"
 elif [ "$#" -eq 2 ]; then
-    echo "Creating session with name: $1 and template: $2"
+    echo "Creating session with name: $1 and template: $2" >&2
     create_session_from_template "$1" "$2"
 fi
