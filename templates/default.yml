@@ -1,9 +1,7 @@
-# Session templates
-
 ---
 name: default
 windows:
-  - name: ' '
-  - name: ' '
-  - name: ' '
-  - name: '󱔗 '
+  - name: 'home'
+  - name: 'files'
+  - name: 'dev'
+  - name: 'git'
