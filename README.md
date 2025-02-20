@@ -1,75 +1,62 @@
 # Tmux Session Factory
 
-A minimal tmux plugin that provides a simple key binding to toggle the status bar on and off.
+A tmux plugin for creating sessions from YAML templates.
 
-## Features
+## Prerequisites
 
-- Toggle the tmux status bar with a single key binding
-- Works without requiring the tmux prefix key
-- Customizable key binding
-- Preserves status bar settings between toggles
-- Compatible with other status bar customization plugins
-- Defaults to Alt+s to avoid common keybinding conflicts
+- [tmux](https://github.com/tmux/tmux)
+- [fzf](https://github.com/junegunn/fzf)
+- [yq](https://github.com/mikefarah/yq)
 
 ## Installation
 
-### Using TPM (recommended)
+### Using TPM
 
-1. Add this line to your `~/.tmux.conf`:
+Add this line to your `~/.tmux.conf`:
+
 ```bash
-set -g @plugin 'moonstream-labs/tmux-status-signal'
+set -g @plugin 'username/tmux-session-factory'
 ```
 
-2. Press `prefix` + <kbd>I</kbd> to fetch and install the plugin.
+Press `prefix + I` to install the plugin.
 
 ### Manual Installation
 
-1. Clone the repository:
 ```bash
-git clone https://github.com/moonstream-labs/tmux-status-signal ~/.tmux/plugins/tmux-status-signal
+git clone https://github.com/username/tmux-session-factory ~/.tmux/plugins/tmux-session-factory
 ```
 
-2. Add this line to your `~/.tmux.conf`:
+Add this line to your `~/.tmux.conf`:
+
 ```bash
-run-shell ~/.tmux/plugins/tmux-status-signal/tmux-status-signal.tmux
+run-shell ~/.tmux/plugins/tmux-session-factory/session-factory.tmux
 ```
-
-3. Reload tmux environment:
-```bash
-tmux source-file ~/.tmux.conf
-```
-
-## Configuration
-
-By default, the status bar toggle is bound to <kbd>Ctrl</kbd> + <kbd>s</kbd>.
-
-You can customize the key binding in your `~/.tmux.conf`:
-```bash
-set -g @toggle-status-key 'M-t'  # Changes binding to Alt+t
-```
-
-Common key binding prefixes:
-- `M-` for Alt/Meta key
-- `C-` for Control key
-
-Note: When choosing a key binding, be mindful of potential conflicts with your shell or editor keybindings.
 
 ## Usage
 
-1. Press <kbd>Alt</kbd> + <kbd>s</kbd> (or your custom key binding) to toggle the status bar
-2. The status bar will toggle between visible and hidden states
-3. No prefix key is required
+1. Press `prefix + T` (default) to open the template selector
+2. Use fzf to select a template
+3. Enter a name for your new session
+4. The session will be created with the configured windows
 
-## Compatibility
+## Configuration
 
-- Works with tmux version 2.1 and later
-- Compatible with most tmux themes and status line customization plugins
-- Designed to work alongside common terminal emulators and shell configurations
+### Custom Key Binding
 
-## License
+```bash
+set -g @session-factory-key "F"
+```
 
-MIT
+### Templates
 
-## Author
+Templates are stored in YAML format in the `templates` directory. Example:
 
-[MoonStream Labs](https://github.com/moonstream-labs)
+```yaml
+---
+name: development
+windows:
+  - name: editor
+  - name: server
+  - name: tests
+  - name: shell
+```
