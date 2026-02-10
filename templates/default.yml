@@ -1,7 +1,0 @@
----
-name: default
-windows:
-  - name: 'home'
-  - name: 'files'
-  - name: 'dev'
-  - name: 'git'
