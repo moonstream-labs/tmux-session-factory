@@ -19,6 +19,7 @@ TEMPLATE_DIR="$(get_template_dir)"
 
 FZF_COLOR_SCHEME="$(get_tmux_option "$fzf_colors_option" "$fzf_colors_default")"
 FZF_COLORS="--color=$FZF_COLOR_SCHEME"
+FZF_EXTRA_OPTS="$(get_tmux_option "$fzf_opts_option" "$fzf_opts_default")"
 
 # ── Build fzf input ──
 # Format: <hidden_key>\t<display_text>
@@ -65,6 +66,7 @@ SELECTION="$(echo "$INPUT" | fzf \
     --reverse \
     --margin=1,2 \
     $FZF_COLORS \
+    $FZF_EXTRA_OPTS \
 )" || exit 0
 
 # Parse selection

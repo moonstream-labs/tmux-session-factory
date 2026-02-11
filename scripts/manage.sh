@@ -23,13 +23,15 @@ if [[ "$TEMPLATE_COUNT" -eq 0 ]]; then
     exit 0
 fi
 
-# Read popup styling options
+# Read popup styling and dimension options
 POPUP_STYLE="$(get_tmux_option "$popup_style_option" "$popup_style_default")"
 POPUP_BORDER_STYLE="$(get_tmux_option "$popup_border_style_option" "$popup_border_style_default")"
 POPUP_BORDER_LINES="$(get_tmux_option "$popup_border_lines_option" "$popup_border_lines_default")"
+POPUP_WIDTH="$(get_tmux_option "$popup_width_option" "$popup_width_manage_default")"
+POPUP_HEIGHT="$(get_tmux_option "$popup_height_option" "$popup_height_manage_default")"
 
 # Open the manage picker in a popup
-tmux display-popup -E -w 80% -h 70% \
+tmux display-popup -E -w "$POPUP_WIDTH" -h "$POPUP_HEIGHT" \
     -s "$POPUP_STYLE" -S "$POPUP_BORDER_STYLE" -b "$POPUP_BORDER_LINES" \
     -T " Manage Templates " \
     "$CURRENT_DIR/_manage_picker.sh"

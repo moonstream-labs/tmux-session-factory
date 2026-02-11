@@ -47,7 +47,19 @@ key_save_default="S"
 key_manage_option="@session-factory-key-manage"
 key_manage_default="M"
 
-# ── Future v2 options (not yet implemented) ──
-# @session-factory-popup-width       # Override popup width
-# @session-factory-popup-height      # Override popup height
-# @session-factory-fzf-opts          # Additional fzf flags
+# ── Popup dimensions ──
+# Separate defaults for new-session and manage popups.
+# A single override option applies to both; per-popup overrides are not exposed
+# to keep configuration simple.
+popup_width_option="@session-factory-popup-width"
+popup_height_option="@session-factory-popup-height"
+popup_width_new_default="60%"
+popup_height_new_default="50%"
+popup_width_manage_default="80%"
+popup_height_manage_default="70%"
+
+# ── Additional fzf options ──
+# Appended to the fzf invocation in both pickers.
+# Example: set -g @session-factory-fzf-opts "--exact --no-sort"
+fzf_opts_option="@session-factory-fzf-opts"
+fzf_opts_default=""
