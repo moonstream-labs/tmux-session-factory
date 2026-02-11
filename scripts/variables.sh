@@ -12,7 +12,7 @@ template_dir_default="${XDG_DATA_HOME:-$HOME/.local/share}/tmux/session-template
 # Commands not on this list (and shell processes like zsh/bash/fish)
 # result in a plain shell in the captured working directory.
 restore_processes_option="@session-factory-restore-processes"
-restore_processes_default="btop yazi"
+restore_processes_default="btop yazi lazygit"
 
 # ── Future v2 options (not yet implemented) ──
 # @session-factory-key-new           # Override prefix + n

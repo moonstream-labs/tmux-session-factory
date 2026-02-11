@@ -30,6 +30,17 @@ if ! jq empty "$TEMPLATE_FILE" 2>/dev/null; then
     exit 1
 fi
 
+# ── Guard: only one edit at a time ──
+EXISTING_EDIT="$(tmux list-sessions -F '#{session_name}' 2>/dev/null | grep '^_factory_edit__' | head -1)" || true
+if [[ -n "$EXISTING_EDIT" ]]; then
+    EXISTING_NAME="$(tmux show-environment -g _factory_edit_name 2>/dev/null | sed 's/^[^=]*=//')" || true
+    if [[ -z "$EXISTING_NAME" ]]; then
+        EXISTING_NAME="${EXISTING_EDIT#_factory_edit__}"
+    fi
+    display_message "  Already editing: $EXISTING_NAME. Save or discard first."
+    exit 0
+fi
+
 # Read template name
 TEMPLATE_NAME="$(jq -r '.name' "$TEMPLATE_FILE")"
 
@@ -37,7 +48,7 @@ TEMPLATE_NAME="$(jq -r '.name' "$TEMPLATE_FILE")"
 SAFE_EDIT_NAME="$(sanitize_name "$TEMPLATE_NAME")"
 EDIT_SESSION="_factory_edit__${SAFE_EDIT_NAME}"
 
-# If an edit session with this name already exists, kill it first
+# If a stale edit session with this exact name exists (e.g., from a crash), kill it
 if session_exists "$EDIT_SESSION"; then
     tmux kill-session -t "=$EDIT_SESSION" 2>/dev/null || true
 fi
