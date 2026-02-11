@@ -906,7 +906,7 @@ The implementation uses:
 
 ## 8. Plugin Options (tmux.conf)
 
-### 8.1 v1 Options
+### 8.1 Core Options
 
 Users configure the plugin by setting tmux options before TPM loads.
 
@@ -914,23 +914,53 @@ Users configure the plugin by setting tmux options before TPM loads.
 # Template storage directory (default: $XDG_DATA_HOME/tmux/session-templates)
 set -g @session-factory-dir "$HOME/.local/share/tmux/session-templates"
 
-# Process restore whitelist (default: "btop yazi")
+# Process restore whitelist (default: "btop yazi lazygit")
 # Space-separated list of commands to auto-restart on template apply
-set -g @session-factory-restore-processes "btop yazi"
+set -g @session-factory-restore-processes "btop yazi lazygit"
 ```
 
-### 8.2 Future Options (v2+)
+### 8.2 Keybinding Options
 
-These are not implemented in v1 but the code should be structured to support them easily (i.e., all hardcoded values that could become options should be defined as constants in `variables.sh`):
+Override the default key for each action. Values must be valid tmux key names.
 
+```tmux
+set -g @session-factory-key-new "n"              # default: n
+set -g @session-factory-key-new-template "C-n"   # default: C-n
+set -g @session-factory-key-save "S"             # default: S
+set -g @session-factory-key-manage "M"           # default: M
 ```
-@session-factory-key-new           # Override prefix + n
-@session-factory-key-new-template  # Override prefix + C-n
-@session-factory-key-save          # Override prefix + S
-@session-factory-key-manage        # Override prefix + M
-@session-factory-popup-width       # Override popup width
-@session-factory-popup-height      # Override popup height
-@session-factory-fzf-opts          # Additional fzf flags
+
+The entry point (`session-factory.tmux`) reads these options via `get_tmux_option` and passes the values to `tmux bind-key`. The edit-mode save/discard handlers also read `key-save` to restore the correct binding after edit mode exits.
+
+### 8.3 Popup Styling Options
+
+The popup uses a monochrome palette by default (`#080909` background, `#dadada` foreground, rounded corners). These map directly to `display-popup` flags `-s`, `-S`, and `-b`.
+
+```tmux
+set -g @session-factory-popup-style "bg=#080909,fg=#dadada"
+set -g @session-factory-popup-border-style "fg=#dadada"
+set -g @session-factory-popup-border-lines "rounded"   # single, rounded, double, heavy, simple, padded, none
+```
+
+### 8.4 Popup Dimension Options
+
+Override the popup width and height. When set, the value applies to both the new-session and manage pickers. The defaults differ per picker (new-session: 60%x50%, manage: 80%x70%) but a user override applies uniformly.
+
+```tmux
+set -g @session-factory-popup-width "60%"
+set -g @session-factory-popup-height "50%"
+```
+
+### 8.5 fzf Options
+
+Override the fzf color scheme or append additional fzf flags to both pickers.
+
+```tmux
+# Override the monochrome fzf color palette
+set -g @session-factory-fzf-colors "bg:#080909,fg:#dadada,bg+:#080909,fg+:#dadada:bold,pointer:#dadada,prompt:#808080,header:#595959,gutter:#080909"
+
+# Append additional fzf flags
+set -g @session-factory-fzf-opts "--exact --no-sort"
 ```
 
 ---

@@ -42,7 +42,7 @@ While in **edit mode** (editing a template interactively):
 
 | Dependency | Version | Purpose |
 |------------|---------|---------|
-| [tmux](https://github.com/tmux/tmux) | >= 3.2 | `display-popup` support |
+| [tmux](https://github.com/tmux/tmux) | >= 3.3 | `display-popup` with styling flags |
 | [jq](https://jqlang.github.io/jq/) | any | JSON template read/write |
 | [fzf](https://github.com/junegunn/fzf) | any | Fuzzy picker in popup modals |
 | [bash](https://www.gnu.org/software/bash/) | >= 4.0 | Plugin scripts |
@@ -100,13 +100,59 @@ A space-separated list of TUI application names that should be automatically res
 Commands **not** on this list — and shell processes like `zsh`, `bash`, or `fish` — result in a plain shell at the correct path.
 
 ```tmux
-set -g @session-factory-restore-processes "btop yazi"
+set -g @session-factory-restore-processes "btop yazi lazygit"
 ```
 
-The default whitelist is `btop yazi`. To add more programs:
+The default whitelist is `btop yazi lazygit`. To add more programs:
 
 ```tmux
-set -g @session-factory-restore-processes "btop yazi nvim lazygit"
+set -g @session-factory-restore-processes "btop yazi lazygit nvim"
+```
+
+### Keybindings
+
+Override the default key for each action:
+
+```tmux
+set -g @session-factory-key-new "n"              # prefix + n  (default)
+set -g @session-factory-key-new-template "C-n"   # prefix + C-n  (default)
+set -g @session-factory-key-save "S"             # prefix + S  (default)
+set -g @session-factory-key-manage "M"           # prefix + M  (default)
+```
+
+Values must be valid tmux key names (e.g., `n`, `C-n`, `S`, `M`, `F5`).
+
+### Popup styling
+
+The popup uses a monochrome palette by default (`#080909` background, `#dadada` foreground, rounded borders). Override any of these:
+
+```tmux
+set -g @session-factory-popup-style "bg=#080909,fg=#dadada"
+set -g @session-factory-popup-border-style "fg=#dadada"
+set -g @session-factory-popup-border-lines "rounded"   # single, rounded, double, heavy, simple, padded, none
+```
+
+### Popup dimensions
+
+```tmux
+set -g @session-factory-popup-width "60%"    # default for new-session picker
+set -g @session-factory-popup-height "50%"   # (manage picker defaults to 80%x70%)
+```
+
+When set, both pickers use the specified dimensions.
+
+### fzf styling
+
+Override the fzf color scheme (monochrome by default):
+
+```tmux
+set -g @session-factory-fzf-colors "bg:#080909,fg:#dadada,bg+:#080909,fg+:#dadada:bold,pointer:#dadada,prompt:#808080,header:#595959,gutter:#080909"
+```
+
+Append additional fzf flags:
+
+```tmux
+set -g @session-factory-fzf-opts "--exact --no-sort"
 ```
 
 ## Usage
