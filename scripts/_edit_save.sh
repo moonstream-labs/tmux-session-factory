@@ -54,7 +54,8 @@ fi
 tmux kill-session -t "=$SESSION_NAME" 2>/dev/null || true
 
 # ── Restore original key bindings ──
-tmux bind-key S run-shell "$CURRENT_DIR/save.sh"
+KEY_SAVE="$(get_tmux_option "$key_save_option" "$key_save_default")"
+tmux bind-key "$KEY_SAVE" run-shell "$CURRENT_DIR/save.sh"
 tmux unbind-key Q 2>/dev/null || true
 
 # ── Clean up environment variables ──

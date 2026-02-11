@@ -32,11 +32,22 @@ popup_border_lines_default="rounded"
 fzf_colors_option="@session-factory-fzf-colors"
 fzf_colors_default="bg:#080909,fg:#dadada,bg+:#080909,fg+:#dadada:bold,hl:#dadada:underline,hl+:#ffffff:bold:underline,pointer:#dadada,prompt:#808080,header:#595959,gutter:#080909,marker:#dadada,info:#595959,border:#dadada,preview-bg:#080909,preview-fg:#dadada"
 
+# ── Keybindings ──
+# Users can override the default key for each action via tmux options.
+# Values should be valid tmux key names (e.g., "n", "C-n", "S", "M", "F5").
+key_new_option="@session-factory-key-new"
+key_new_default="n"
+
+key_new_template_option="@session-factory-key-new-template"
+key_new_template_default="C-n"
+
+key_save_option="@session-factory-key-save"
+key_save_default="S"
+
+key_manage_option="@session-factory-key-manage"
+key_manage_default="M"
+
 # ── Future v2 options (not yet implemented) ──
-# @session-factory-key-new           # Override prefix + n
-# @session-factory-key-new-template  # Override prefix + C-n
-# @session-factory-key-save          # Override prefix + S
-# @session-factory-key-manage        # Override prefix + M
 # @session-factory-popup-width       # Override popup width
 # @session-factory-popup-height      # Override popup height
 # @session-factory-fzf-opts          # Additional fzf flags

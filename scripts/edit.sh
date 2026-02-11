@@ -69,11 +69,12 @@ tmux set-environment -g _factory_edit_return "$RETURN_SESSION"
 # These are global (tmux doesn't support per-session bindings),
 # so _edit_save.sh and _edit_discard.sh check the session name
 # before proceeding.
-tmux bind-key S run-shell "$CURRENT_DIR/_edit_save.sh"
+KEY_SAVE="$(get_tmux_option "$key_save_option" "$key_save_default")"
+tmux bind-key "$KEY_SAVE" run-shell "$CURRENT_DIR/_edit_save.sh"
 tmux bind-key Q run-shell "$CURRENT_DIR/_edit_discard.sh"
 
 # Switch to the edit session
 tmux switch-client -t "=$EDIT_SESSION"
 
 # Display instructions
-display_message "  Editing: $TEMPLATE_NAME  —  prefix+S to save, prefix+Q to discard"
+display_message "  Editing: $TEMPLATE_NAME  —  prefix+$KEY_SAVE to save, prefix+Q to discard"
