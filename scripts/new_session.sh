@@ -29,6 +29,13 @@ if [[ "$TEMPLATE_ONLY" -eq 1 && "$TEMPLATE_COUNT" -eq 0 ]]; then
     exit 0
 fi
 
+# Read popup styling options
+POPUP_STYLE="$(get_tmux_option "$popup_style_option" "$popup_style_default")"
+POPUP_BORDER_STYLE="$(get_tmux_option "$popup_border_style_option" "$popup_border_style_default")"
+POPUP_BORDER_LINES="$(get_tmux_option "$popup_border_lines_option" "$popup_border_lines_default")"
+
 # Open the picker in a popup
-tmux display-popup -E -w 60% -h 50% -T "  New Session" \
+tmux display-popup -E -w 60% -h 50% \
+    -s "$POPUP_STYLE" -S "$POPUP_BORDER_STYLE" -b "$POPUP_BORDER_LINES" \
+    -T " New Session " \
     "$CURRENT_DIR/_new_session_picker.sh $TEMPLATE_ONLY"

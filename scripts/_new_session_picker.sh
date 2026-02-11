@@ -17,7 +17,8 @@ source "$CURRENT_DIR/variables.sh"
 TEMPLATE_ONLY="${1:-0}"
 TEMPLATE_DIR="$(get_template_dir)"
 
-FZF_COLORS="--color=bg+:-1,fg+:#dadada,hl:#33ccff,hl+:#00ff99,pointer:#00ff99,prompt:#33ccff,header:#595959"
+FZF_COLOR_SCHEME="$(get_tmux_option "$fzf_colors_option" "$fzf_colors_default")"
+FZF_COLORS="--color=$FZF_COLOR_SCHEME"
 
 # ── Build fzf input ──
 # Format: <hidden_key>\t<display_text>
