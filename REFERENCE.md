@@ -172,10 +172,10 @@ Before finalizing, verify none of the new tmux bindings collide with existing pr
 
 | tmux binding | Status |
 |---|---|
-| `prefix + n` | **Safe.** Not used by tmux natively or in the current `tmux.conf`. |
-| `prefix + C-n` | **Safe.** Not used by tmux natively or in the current `tmux.conf`. |
+| `prefix + n` | **Override.** Replaces tmux's native `next-window`. Acceptable — window navigation is handled via `C-M-Left/Right` in the current Ghostty config. |
+| `prefix + C-n` | **Override.** Also bound to `next-window` by default. Same rationale as above. |
 | `prefix + S` | **Safe.** Uppercase `S` is not bound. (Lowercase `s` is bound to session picker via `\x01s` in Ghostty.) |
-| `prefix + M` | **Safe.** Not used by tmux natively or in the current `tmux.conf`. |
+| `prefix + M` | **Override.** Replaces tmux's native `select-pane -M` (mark pane). Pane marking is rarely used and not part of the current workflow. |
 
 No conflicts with existing tmux-resurrect, tmux-pain-control, tmux-yank, tmux-continuum, or catppuccin bindings.
 
@@ -189,23 +189,25 @@ Following the TPM convention established by tmux-resurrect and other official tm
 
 ```
 tmux-session-factory/
-├── session-factory.tmux        # TPM entry point — sources helpers, registers bindings
+├── session-factory.tmux          # TPM entry point — sources helpers, registers bindings
 ├── scripts/
-│   ├── helpers.sh              # Shared utilities: get_tmux_option, display_message, snapshot_session
-│   ├── variables.sh            # Option names and default values
-│   ├── save.sh                 # Thin wrapper: command-prompt → _snapshot.sh
-│   ├── _snapshot.sh            # Core capture logic: session → JSON template
-│   ├── apply.sh                # Apply a template to create a new session
-│   ├── new_session.sh          # fzf picker: blank or template → create session
-│   ├── manage.sh               # fzf picker: browse / preview / edit / delete templates
-│   ├── edit.sh                 # Interactive edit: instantiate temp session, set up bindings
-│   ├── _edit_save.sh           # Edit mode: re-snapshot temp session, restore bindings, cleanup
-│   └── _edit_discard.sh        # Edit mode: discard changes, restore bindings, cleanup
-├── README.md                   # User-facing documentation
-└── LICENSE                     # License file
+│   ├── helpers.sh                # Shared utilities: get_tmux_option, display_message, snapshot_session, etc.
+│   ├── variables.sh              # Option names and default values
+│   ├── save.sh                   # Thin wrapper: command-prompt → _snapshot.sh
+│   ├── _snapshot.sh              # Core capture logic: session → JSON template
+│   ├── apply.sh                  # Apply a template to create a new session
+│   ├── new_session.sh            # Popup launcher for new session picker
+│   ├── _new_session_picker.sh    # Internal: fzf picker logic for new session popup
+│   ├── manage.sh                 # Popup launcher for template management
+│   ├── _manage_picker.sh         # Internal: fzf picker logic for manage popup
+│   ├── edit.sh                   # Interactive edit: instantiate temp session, set up bindings
+│   ├── _edit_save.sh             # Edit mode: re-snapshot temp session, restore bindings, cleanup
+│   └── _edit_discard.sh          # Edit mode: discard changes, restore bindings, cleanup
+├── README.md                     # User-facing documentation
+└── LICENSE                       # License file
 ```
 
-Scripts prefixed with `_` are internal — called by other scripts, not directly by the user or by tmux key bindings.
+Scripts prefixed with `_` are internal — called by other scripts, not directly by the user or by tmux key bindings. The `new_session.sh` and `manage.sh` scripts are thin popup launchers that delegate the actual fzf picker logic to `_new_session_picker.sh` and `_manage_picker.sh` respectively. This avoids quoting issues with inline scripts inside `display-popup` (see Section 7.4).
 
 ### 4.2 TPM Entry Point: `session-factory.tmux`
 
@@ -242,12 +244,18 @@ tmux bind-key M   run-shell "$CURRENT_DIR/scripts/manage.sh"
 
 ### 4.3 helpers.sh
 
-Following the tmux-resurrect convention, this file provides shared utility functions used across all scripts.
+Following the tmux-resurrect convention, this file provides shared utility functions used across all scripts. It uses a double-source guard to prevent re-execution when sourced by multiple scripts in the same process.
 
-**Required functions:**
+**Functions:**
 
 ```bash
 #!/usr/bin/env bash
+
+# Sourced by all scripts — do NOT set -euo pipefail here.
+
+# ── Guard against double-sourcing ──
+[[ -n "${_SESSION_FACTORY_HELPERS_LOADED:-}" ]] && return
+_SESSION_FACTORY_HELPERS_LOADED=1
 
 # Read a tmux user option, returning a default if unset.
 # This is the standard TPM pattern for plugin configuration.
@@ -258,7 +266,7 @@ get_tmux_option() {
     local default_value="$2"
     local option_value
     option_value="$(tmux show-option -gqv "$option")"
-    if [ -z "$option_value" ]; then
+    if [[ -z "$option_value" ]]; then
         echo "$default_value"
     else
         echo "$option_value"
@@ -279,13 +287,22 @@ display_message() {
 }
 
 # Resolve the template storage directory.
-# Sources variables.sh if not already loaded.
 get_template_dir() {
     local dir
     dir="$(get_tmux_option "$template_dir_option" "$template_dir_default")"
-    # Expand ~ and environment variables
-    dir="$(eval echo "$dir")"
+    # Expand tilde to $HOME (safe alternative to eval)
+    dir="${dir/#\~/$HOME}"
     echo "$dir"
+}
+
+# Sanitize a template name for use as a filename.
+# Replace non-alphanumeric/hyphen/underscore with hyphen,
+# collapse consecutive hyphens, strip leading/trailing hyphens.
+#
+# Usage: sanitize_name "My Template Name!"
+sanitize_name() {
+    local name="$1"
+    echo "$name" | tr -cs '[:alnum:]-_' '-' | sed 's/--*/-/g; s/^-//; s/-$//'
 }
 
 # List template files sorted by modification time (newest first).
@@ -300,6 +317,14 @@ list_template_files() {
 # Returns 0 if exists, 1 if not.
 session_exists() {
     tmux has-session -t "=$1" 2>/dev/null
+}
+
+# Snapshot a running session to a JSON template file.
+# This is the core capture logic used by both _snapshot.sh and _edit_save.sh.
+#
+# Usage: snapshot_session <session_name> <template_name> <output_file>
+snapshot_session() {
+    # ... (see Section 7.1 for the full implementation)
 }
 ```
 
@@ -474,8 +499,13 @@ The `_snapshot.sh` script performs the actual work:
 
 ```bash
 #!/usr/bin/env bash
-# Usage: _snapshot.sh <template_name>
-# Captures the active session and writes the JSON template.
+# Usage: _snapshot.sh <template_name> [session_name] [output_file]
+#
+# Captures a session and writes the JSON template.
+# If session_name is omitted, uses the current client's active session.
+# If output_file is omitted, derives it from the sanitized template name.
+# The optional arguments support the edit-save workflow, where the session
+# name is the temp edit session and the output file is the original template.
 
 set -euo pipefail
 
@@ -483,8 +513,9 @@ CURRENT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "$CURRENT_DIR/helpers.sh"
 source "$CURRENT_DIR/variables.sh"
 
-TEMPLATE_NAME="$1"
-TEMPLATE_DIR="$(get_template_dir)"
+TEMPLATE_NAME="${1:-}"
+SESSION_NAME="${2:-}"
+OUTPUT_FILE="${3:-}"
 
 # Validate
 if [[ -z "$TEMPLATE_NAME" ]]; then
@@ -492,14 +523,25 @@ if [[ -z "$TEMPLATE_NAME" ]]; then
     exit 1
 fi
 
-# Sanitize filename
-SAFE_NAME="$(echo "$TEMPLATE_NAME" | tr -cs '[:alnum:]-_' '-' | sed 's/^-//;s/-$//')"
-TEMPLATE_FILE="$TEMPLATE_DIR/$SAFE_NAME.json"
+# Default session name to the current client's active session
+if [[ -z "$SESSION_NAME" ]]; then
+    SESSION_NAME="$(tmux display-message -p '#{session_name}')"
+fi
 
-SESSION_NAME="$(tmux display-message -p '#{session_name}')"
+# Default output file to template dir + sanitized name
+if [[ -z "$OUTPUT_FILE" ]]; then
+    TEMPLATE_DIR="$(get_template_dir)"
+    mkdir -p "$TEMPLATE_DIR"
+    SAFE_NAME="$(sanitize_name "$TEMPLATE_NAME")"
+    if [[ -z "$SAFE_NAME" ]]; then
+        display_message "  Template name produced an empty filename."
+        exit 1
+    fi
+    OUTPUT_FILE="$TEMPLATE_DIR/$SAFE_NAME.json"
+fi
 
-# Build JSON using jq
-# ... (see detailed implementation logic in Section 7.1)
+# Snapshot the session (see Section 7.1 for snapshot_session implementation)
+snapshot_session "$SESSION_NAME" "$TEMPLATE_NAME" "$OUTPUT_FILE"
 
 display_message "  Template saved: $TEMPLATE_NAME"
 ```
@@ -552,15 +594,19 @@ The filename is included as a hidden column (using `--delimiter` and `--with-nth
 
 **Trigger:** Called internally by `new_session.sh` and `edit.sh`. Not bound to a key directly.
 
-**Usage:** `apply.sh <template_file_path> <session_name>`
+**Usage:** `apply.sh <template_file_path> <session_name> [--no-switch]`
+
+The `--no-switch` flag creates the session without switching the client to it. This is used by `edit.sh`, which needs to set up bindings before switching.
 
 **Flow:**
 
-1. Read and parse the JSON template file.
-2. Create the session with the first window:
+1. Validate the template file exists and is valid JSON (`jq empty`).
+2. Read `base-index` and `pane-base-index` from tmux config (to compute correct window/pane indices regardless of user configuration).
+3. Create the session with the first window:
    ```
-   tmux new-session -d -s <session_name> -n <first_window_name> -c <first_pane_path>
+   tmux new-session -d -s <session_name> -n <first_window_name> -c <first_pane_path> -x <cols> -y <rows>
    ```
+   Terminal dimensions are read via `tput` with fallback values (200x50) for cases where no tty is available (e.g., when called from `tmux run-shell`).
 3. For each additional pane in the first window:
    ```
    tmux split-window -t <session>:<window> -c <pane_path>
@@ -605,7 +651,7 @@ case "$PANE_COMMAND" in
         ;;
     *)
         # Check if command is on the whitelist
-        if echo " $RESTORE_PROCESSES " | grep -q " $PANE_COMMAND "; then
+        if echo " $RESTORE_PROCESSES " | grep -qF " $PANE_COMMAND "; then
             tmux send-keys -t "$PANE_TARGET" "cd $(printf '%q' "$PANE_PATH") && clear" Enter
             tmux send-keys -t "$PANE_TARGET" "$PANE_COMMAND" Enter
         else
@@ -625,6 +671,8 @@ When splitting panes, tmux assigns indices sequentially. The layout string encod
 3. Apply the layout: `select-layout <layout_string>`.
 
 The layout string is what guarantees the geometry matches the original. We do NOT need to figure out whether the original splits were horizontal or vertical — the layout string encodes that.
+
+**Window and pane targeting:** All targeting uses index-based addressing (`<session>:<window_index>.<pane_index>`) rather than window names. Window names can contain spaces, unicode characters, or be duplicated — all of which break name-based targeting. Window indices are computed as `base-index + w` where `w` is the creation order (0-based). Pane indices are computed as `pane-base-index + p` where `p` is the split order (0-based).
 
 **Edge cases:**
 - A working directory in the template no longer exists → fall back to `$HOME`.
@@ -678,35 +726,45 @@ Enter: preview · Ctrl-E: edit · Ctrl-D: delete
 
 **Flow:**
 
-1. Read the template name from the JSON file.
-2. Generate a temporary session name: `_factory_edit:<template_name>`.
-3. Call `apply.sh` to instantiate the template as a temporary session.
-4. Register a *temporary* key binding in tmux that allows the user to signal "done editing":
-   - `prefix + S` in this context should re-snapshot the temp session back to the original template file, then clean up.
-   - `prefix + Q` should discard changes and clean up.
-5. Display a message: `"Editing template: <name> — prefix+S to save & exit, prefix+Q to discard"`
-6. Switch the client to the temporary session.
+1. Read the template name from the JSON file. Validate the file exists and is valid JSON.
+2. Generate a temporary session name: `_factory_edit__<sanitized_name>`. The template name is sanitized with `sanitize_name()` to produce a tmux-safe session name. A double underscore `__` is used as the separator because colons (`:`) are tmux target delimiters and cannot appear in session names used for targeting.
+3. If an edit session with this name already exists (e.g., from a crashed previous edit), kill it first.
+4. Record the current session name (to return to after editing) and store edit state in tmux global environment variables:
+   - `_factory_edit_file` — full path to the template JSON file
+   - `_factory_edit_name` — display name of the template
+   - `_factory_edit_return` — session name to return to after edit
+   
+   Environment variables are used instead of parsing the session name because they can store the full file path and display name separately, without being limited by session name character constraints.
+5. Call `apply.sh` with `--no-switch` to instantiate the template as a temporary session.
+6. Register *temporary* key bindings in tmux:
+   - `prefix + S` → `_edit_save.sh` (re-snapshot and clean up)
+   - `prefix + Q` → `_edit_discard.sh` (discard and clean up)
+7. Switch the client to the temporary session.
+8. Display a message: `"Editing: <name> — prefix+S to save, prefix+Q to discard"`
 
-**"Save and exit" handler (re-snapshot):**
+**"Save and exit" handler (`_edit_save.sh`):**
 
-When the user presses `prefix + S` while in a `_factory_edit:*` session:
+When the user presses `prefix + S`:
 
-1. Detect that the current session name starts with `_factory_edit:`.
-2. Extract the original template name from the session name.
-3. Run the snapshot logic (same as `save.sh` / `_snapshot.sh`), writing back to the original template file.
-4. Record the previous session name (the one the user was in before editing).
-5. Switch the client back to the previous session (or the next available session).
-6. Kill the temporary edit session.
-7. Display confirmation: `"  Template updated: <name>"`
+1. Check if the current session name starts with `_factory_edit__`. If not, fall through to normal `save.sh` behavior (since bindings are global).
+2. Read the template file path, display name, and return session from the tmux environment variables.
+3. Call `snapshot_session()` on the current (edit) session, writing to the original template file.
+4. Switch the client back to the return session. If it no longer exists, switch to any non-edit session. If no sessions remain, create a "default" session as a fallback.
+5. Kill the temporary edit session.
+6. Restore the original key bindings (`prefix + S` → `save.sh`, unbind `Q`).
+7. Clean up the environment variables (`tmux set-environment -gu`).
+8. Display confirmation: `"  Template updated: <name>"`
 
-**"Discard" handler:**
+**"Discard" handler (`_edit_discard.sh`):**
 
-When the user presses `prefix + Q` while in a `_factory_edit:*` session:
+When the user presses `prefix + Q`:
 
-1. Record the previous session.
-2. Switch back.
-3. Kill the temporary session.
-4. Display: `"  Edit discarded."`
+1. Check if the current session name starts with `_factory_edit__`. If not, display `"Not in edit mode."` and exit.
+2. Read the return session from the environment variables.
+3. Switch back to the return session (with the same fallback logic as save).
+4. Kill the temporary session.
+5. Restore bindings and clean up environment variables.
+6. Display: `"  Edit discarded."`
 
 **Implementation approach for context-sensitive bindings:**
 
@@ -723,12 +781,12 @@ tmux bind-key S run-shell "$CURRENT_DIR/save.sh"
 tmux unbind-key Q
 ```
 
-**Critical consideration:** The `prefix + S` rebinding is session-global in tmux (bindings are global, not per-session). This means while in edit mode, pressing `prefix + S` in *any* session will trigger the edit-save handler. The edit-save/discard scripts must therefore check whether the *active session* is actually a `_factory_edit:*` session before proceeding. If it's not, the save handler should fall through to normal save behavior.
+**Critical consideration:** The `prefix + S` rebinding is session-global in tmux (bindings are global, not per-session). This means while in edit mode, pressing `prefix + S` in *any* session will trigger the edit-save handler. The edit-save/discard scripts must therefore check whether the *active session* is actually a `_factory_edit__*` session before proceeding. If it's not, the save handler should fall through to normal save behavior.
 
 ```bash
 # At the top of _edit_save.sh:
 SESSION_NAME="$(tmux display-message -p '#{session_name}')"
-if [[ "$SESSION_NAME" != _factory_edit:* ]]; then
+if [[ "$SESSION_NAME" != _factory_edit__* ]]; then
     # Not in edit mode — fall through to normal save
     exec "$CURRENT_DIR/save.sh"
 fi
@@ -810,9 +868,9 @@ snapshot_session() {
 
 See Section 6.3 for the detailed flow. Key implementation notes:
 
-- **Window targeting:** After creating a window with `-n <name>`, target it as `<session>:<name>`. However, if two windows share a name, this is ambiguous. Safer to use the window index. After `new-window`, capture the index from `tmux display-message -p -t <session> '#{window_index}'` or simply use the expected index from the template.
+- **Window targeting:** All window targeting uses index-based addressing (`<session>:<index>`) rather than window names. Window names can contain spaces, unicode characters (e.g., nerd font icons like ` `), or be duplicated — all of which break name-based targeting. Since we create windows sequentially in a new session, window indices are deterministic: `base-index + w` where `w` is the creation order (0-based). The `base-index` and `pane-base-index` are read from tmux config at the start of `apply.sh`.
 - **Layout application timing:** Apply `select-layout` AFTER all panes for that window have been created. The layout string encodes geometry for exactly N panes; applying it with fewer panes will fail or produce wrong results.
-- **Pane index stability:** When splitting, tmux assigns the new pane the next available index. After creating all panes and applying the layout, pane indices should be 0, 1, 2, ... in order. Use these for targeting.
+- **Pane index stability:** When splitting, tmux assigns the new pane the next available index. After creating all panes and applying the layout, pane indices are `pane-base-index, pane-base-index+1, ...` in order. Use these for targeting.
 
 ### 7.3 New Session Picker Logic
 
@@ -830,23 +888,19 @@ The popup spawns a bash subshell. Within that subshell:
 
 ### 7.4 fzf Popup Pattern
 
-All three pickers (new session, manage, edit) use the same structural pattern:
+Both pickers (new session and manage) use the same structural pattern: a thin launcher script opens a `display-popup` that delegates to an internal `_`-prefixed picker script.
 
 ```bash
-tmux display-popup -E -w <width> -h <height> -T " <title>" \
-    "bash -c '
-        # ... inline script or call to external script ...
-    '"
-```
-
-**Note on quoting:** The inline script is inside single quotes within double quotes. Any single quotes inside the script must be escaped as `'\''`. For complex scripts, it's cleaner to call an external script file:
-
-```bash
+# Launcher (e.g., new_session.sh):
 tmux display-popup -E -w 60% -h 50% -T " Title" \
-    "$CURRENT_DIR/_picker.sh [args]"
+    "$CURRENT_DIR/_new_session_picker.sh [args]"
 ```
 
-This avoids quoting hell and makes the code testable independently.
+This pattern avoids quoting hell (inline scripts inside single quotes within double quotes are fragile) and makes each picker independently testable.
+
+The implementation uses:
+- `new_session.sh` → `_new_session_picker.sh <template_only_flag>` (60% x 50%)
+- `manage.sh` → `_manage_picker.sh` (80% x 70%, larger to accommodate the preview pane)
 
 ---
 
@@ -962,7 +1016,7 @@ Or using a local bare git repo as described in the TPM development docs.
 ### 10.5 Interactive Template Editing
 
 1. From the manage picker, user highlights `fullstack-dev` and presses `Ctrl-E`.
-2. Popup closes. A temporary session `_factory_edit:fullstack-dev` is created with the template's layout.
+2. Popup closes. A temporary session `_factory_edit__fullstack-dev` is created with the template's layout.
 3. Status line shows: `"Editing: fullstack-dev — prefix+S to save, prefix+Q to discard"`
 4. User rearranges panes, renames a window, adds a split, resizes things.
 5. User presses `prefix + S` (physical `Super+Shift+S`).
@@ -1150,7 +1204,7 @@ Physical Super → Ctrl, Physical Ctrl → Super. See Section 3.1 for the full m
 | Snapshot | The act of capturing a running session's state and writing it as a template. |
 | Apply | The act of reading a template and creating a new tmux session from it. |
 | Whitelist | The `@session-factory-restore-processes` option — a list of TUI commands that should be auto-restarted when applying a template. |
-| Edit mode | A temporary state where a template is instantiated as a `_factory_edit:*` session for interactive modification. |
+| Edit mode | A temporary state where a template is instantiated as a `_factory_edit__*` session for interactive modification. State is tracked via tmux global environment variables (`_factory_edit_file`, `_factory_edit_name`, `_factory_edit_return`). |
 | TPM | Tmux Plugin Manager. Loads plugins by executing all `*.tmux` files in the plugin directory. |
 | keyd | Kernel-level key remapper. In this environment, swaps physical Ctrl and Super. |
 | Ghostty | GPU-accelerated terminal emulator. Translates logical key combos to escape sequences sent to tmux. |
